@@ -14,7 +14,7 @@ logger = logging.getLogger("db_init")
 
 # Tables to import, read in order from data/<table>.csv
 # With foreign keys, referenced tables must come first (e.g. users before orders)
-TABLES = ["users"]
+TABLES = ["users", "stations"]
 
 
 def is_initialized(conn: psycopg.Connection) -> bool:
