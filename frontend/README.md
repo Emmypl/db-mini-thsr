@@ -1,24 +1,24 @@
-# Mini THSR 前端使用說明
+# Mini THSR Frontend Documentation
 
-## 1. 各個檔案怎麼分工？
+## 1. File Responsibilities
 
-| 檔案 | 負責的工作 |
+| File | Purpose |
 | --- | --- |
-| `index.html` | 車次查詢頁：乘車日期、起迄站、選填時間，以及車次結果表格。 |
-| `booking.html` | 訂票頁：顯示所選車次，提供票數、座位偏好、連號欄位與訂票結果區。 |
-| `bookings.html` | 訂單概覽頁：提供訂單編號查詢欄位，顯示目前使用者的訂單列表。 |
-| `booking-detail.html` | 訂單詳情頁：顯示單筆訂單的全部資料，以及取消訂單按鈕。 |
-| `css/style.css` | 四頁共用的外觀：顏色、字體、欄位排列、按鈕、表格與手機排版。 |
-| `js/config.js` | 使用者 API 的網址及讀取逾時時間。 |
-| `js/main.js` | 四頁共用的操作：讀使用者、保存選擇、讀欄位、切換座位需求、顯示資料及 API 接線位置。 |
+| `index.html` | Train Search page: travel date, origin/destination stations, optional time filters, and train results table. |
+| `booking.html` | Booking page: displays the selected train, ticket count, seat preferences, adjacent seat options, and booking result section. |
+| `bookings.html` | Booking Overview page: booking ID search field and list of bookings for the current user. |
+| `booking-detail.html` | Booking Details page: displays complete details of an individual booking, with a Cancel Booking button. |
+| `css/style.css` | Shared styling across all four pages: colors, fonts, layout grid, buttons, tables, and mobile responsive styles. |
+| `js/config.js` | User API URL and request timeout configurations. |
+| `js/main.js` | Shared functionality across all four pages: fetching users, persisting user selection, reading inputs, toggling seat requirement options, rendering data, and API integration hooks. |
 
-HTML 決定畫面上放什麼，CSS 決定怎麼排列，JavaScript 處理操作與資料。這七個檔案不包含後端程式或資料庫。
+HTML determines content structure, CSS controls visual presentation, and JavaScript handles interactions and data. These seven files contain no backend logic or database access.
 
-### 檔名與位置要放對
+### Directory Structure and Placement
 
-建立一個 `frontend` 資料夾，照下表放置，`frontend` 這個資料夾名稱可以自行更改，裡面的相對位置要維持一致。
+Ensure files are organized in the `frontend` directory as shown below. The folder name `frontend` can be renamed if desired, but relative paths inside it must remain consistent.
 
-| 下載時可能出現的檔名 | 整理後的位置 |
+| Downloaded File Name | Target Placement |
 | --- | --- |
 | `index.html` | `frontend/index.html` |
 | `booking.html` | `frontend/booking.html` |
@@ -28,243 +28,238 @@ HTML 決定畫面上放什麼，CSS 決定怎麼排列，JavaScript 處理操作
 | `config.js` | `frontend/js/config.js` |
 | `main.js` | `frontend/js/main.js` |
 
-在 `frontend` 裡建立 `css`、`js` 兩個資料夾；四個 HTML 放在 `frontend` 裡，CSS 放進 `css`，兩個 JavaScript 放進 `js`。本 README 可以放在 `frontend` 裡，與 `index.html` 同一層。
+Inside `frontend`, create `css` and `js` directories; the four HTML files sit in `frontend`, CSS goes into `css`, and the two JavaScript files go into `js`. This README can stay in `frontend` alongside `index.html`.
 
-HTML 引用的是 `css/style.css`、`js/config.js`、`js/main.js`；導覽連結也使用沒有括號編號的 HTML 檔名。
+HTML files reference `css/style.css`, `js/config.js`, and `js/main.js`; navigation links also use clean HTML filenames without numbered suffixes.
 
-## 2. 執行前要準備什麼？
+## 2. Prerequisites
 
-### 先看畫面、測試前端操作
+### Previewing the UI & Testing Frontend Interactions
 
-準備：
+Requirements:
 
-1. 整理好的七個檔案。
-2. Chrome、Edge 等支援 JavaScript 的瀏覽器。
-3. Docker Desktop，或 Docker Engine 搭配 Docker Compose v2。
+1. The seven structured frontend files.
+2. A modern JavaScript-enabled browser such as Chrome or Edge.
+3. Docker Desktop or Docker Engine with Docker Compose v2.
 
-這份前端不需要執行 `npm install`，也不需要前端建置工具。正式範例由 Nginx 容器提供靜態檔案。
+This frontend does not require `npm install` or any frontend build tools. The official template serves static files using an Nginx container.
 
-### 要讓使用者選單有資料
+### Populating the User Dropdown
 
-除了以上準備，還需要可用的使用者列表 API。目前 `config.js` 設定為：
+In addition to the above, an active user list API is required. Currently, `config.js` is set to:
 
 ```js
 usersUrl: "/users"
 ```
 
-意思是向「目前網頁所在網站的 `/users`」讀資料。
+This sends requests to `/users` on the current origin.
 
-例如網頁開在 `http://localhost:8080/`，就會向 `http://localhost:8080/users` 發出請求。範例 Nginx 已將這個路徑代理到 `backend:8000/users`，所以不需修改前端網址或設定 CORS。
+For instance, if the web page is opened at `http://localhost:8080/`, it requests `http://localhost:8080/users`. The provided Nginx configuration already proxies this path to `backend:8000/users`, so no frontend URL modifications or CORS setup are necessary.
 
-若提供的使用者 API 在其他網址，可將 `config.js` 的 `usersUrl` 改成對應完整網址。來源或連接埠不同時，後端還需要允許跨來源讀取（CORS）；這部分請與後端確認。
+If the user API is hosted elsewhere, change `usersUrl` in `config.js` to the target full URL. When origins or ports differ, the backend must enable Cross-Origin Resource Sharing (CORS).
 
-### 要真的查車次與訂票
+### Searching Trains and Making Bookings
 
-需要提供對應 API，並完成 `main.js` 中的 TODO 接線。只有後端端點存在，還不夠；目前前端也尚未呼叫它們。
+These features require the corresponding backend APIs to be implemented and the `TODO` hooks in `main.js` to be connected. Having the backend endpoints exist alone is not enough; the frontend must also be wired to call them.
 
-## 3. 啟動網頁步驟
+## 3. Running the Frontend
 
-1. 啟動 Docker Desktop，等待 Docker 可使用。
-2. 開啟終端機，切換到包含 `docker-compose.yml` 的專案根目錄。不要在 `frontend/` 目錄內執行。
-3. 執行：
+1. Launch Docker Desktop and ensure the Docker engine is running.
+2. Open a terminal and navigate to the project root directory containing `docker-compose.yml`. Do not run this from inside `frontend/`.
+3. Run:
 
 ```bash
 docker compose up --build frontend
 ```
 
-4. 保持終端機開著。看到服務啟動後，在瀏覽器手動開啟：
+4. Keep the terminal running. Once services have started, open your browser to:
 
 ```text
 http://localhost:8080/
 ```
 
-5. 確認頁面有樣式，且右上角的使用者選單能載入姓名。這表示 Nginx 已提供前端，`/users` 也已成功連到後端。
+5. Confirm the page styles load properly and the top-right user dropdown populates with names. This confirms that Nginx is serving the frontend and `/users` successfully proxies to the backend.
 
-若要在背景執行，不持續占用目前的終端機：
+To run containers in the background without tying up your terminal:
 
 ```bash
 docker compose up -d --build frontend
 ```
 
-查看啟動狀態與日誌：
+Check status and view logs:
 
 ```bash
 docker compose ps
 docker compose logs -f frontend backend
 ```
 
-使用者選單會呼叫正式後端的 `GET /users`。首頁的 **Load Example Stations and Trains**、訂票頁的 **Show Example Result** 與訂單明細頁的 **Show Example Booking Details** 只載入 `examples/ui-example.js` 中的畫面展示資料，不會呼叫車站、車次或訂票 API，也不會保存訂單。
+The user dropdown calls the official backend `GET /users`. The **Load Example Stations and Trains** button on the home page, **Show Example Result** on the booking page, and **Show Example Booking Details** on the details page only load mock preview data from `examples/ui-example.js`; they do not call real APIs or persist bookings.
 
-四個頁面的網址：
+Page URLs:
 
-| 頁面 | 網址 |
+| Page | URL |
 | --- | --- |
-| 車次查詢 | `http://localhost:8080/index.html` |
-| 訂票 | `http://localhost:8080/booking.html` |
-| 訂單概覽 | `http://localhost:8080/bookings.html` |
-| 訂單詳情 | `http://localhost:8080/booking-detail.html` |
+| Train Search | `http://localhost:8080/index.html` |
+| Book Tickets | `http://localhost:8080/booking.html` |
+| Booking Overview | `http://localhost:8080/bookings.html` |
+| Booking Details | `http://localhost:8080/booking-detail.html` |
 
-可以用頁面上方的導覽列切換，不需要每次手動輸入網址。
+Use the top navigation bar to switch between pages without manually editing the URL.
 
-### 要停止時
+### Stopping the Services
 
-回到執行啟動指令的終端機，按 `Ctrl+C`。服務停止後，已載入的頁面可能仍留在瀏覽器中，但重新載入或讀取 API 時，已停止的服務就無法回應。
+Press `Ctrl+C` in the running terminal. Once stopped, cached pages may still appear in the browser, but refreshing or making API calls will fail.
 
-### 啟動後什麼結果是正常的？
+### Expected Behavior After Startup
 
-| 你看到的現象 | 原因 |
+| Observation | Cause |
 | --- | --- |
-| 有頁面、排版、英文按鈕 | 前端檔案已載入。 |
-| `Unable to load users.` | 沒有可用的 `/users` API，或 API 連線／回應有問題。 |
-| 車站只有 `Select a station` | 車站 API 尚未接線，程式沒有塞入固定車站。 |
-| 車次或訂單顯示 `No data available` | 目前沒有取得對應資料。 |
-| `Booking is not available yet.` 等提示 | 目前的功能仍保留 TODO，尚未實際呼叫 API。 |
+| Page structure, styling, and English buttons display | Frontend static files loaded successfully. |
+| `Unable to load users.` | The `/users` API is unreachable or returned an error. |
+| Stations show only `Select a station` | Station API is not yet connected; no static stations are hard-coded. |
+| Trains or bookings display `No data available` | No data has been fetched yet. |
+| Prompts such as `Booking is not available yet.` | Feature remains a TODO; API call is not yet wired up. |
 
-## 4. 所有頁面共用的操作
+## 4. Shared Operations Across All Pages
 
-### Current User：目前使用者
+### Current User Selection
 
-頁面開啟時，`main.js` 的 `loadUsers()` 會向設定的 API 讀取名單。
+When any page opens, `loadUsers()` in `main.js` fetches the user list from the configured API.
 
-- 載入完成後，在右上角選擇使用者。
-- 選單顯示姓名，程式保存的是 `user_id`。
-- 換頁或重新整理後，只要使用同一個網站來源、瀏覽器允許儲存，而且編號仍在名單裡，就會還原選擇。
-- 選回 `Select a user`，就清除目前選擇。
-- 名單讀取失敗時，不會另外加入假使用者。
+- After loading, select a user from the top-right dropdown.
+- The dropdown displays user names, while the application stores the corresponding `user_id`.
+- Navigating between pages or refreshing will restore the selection, provided the origin is the same, browser storage is enabled, and the ID remains in the user list.
+- Selecting `Select a user` clears the current selection.
+- If loading fails, mock users will not be inserted automatically.
 
-`Reload` 表示重新向 API 讀取使用者名單，適合失敗後重試。它不是重置資料庫，也不會取消訂單。
+The `Reload` button re-fetches the user list from the API (useful for retrying after a failure). It does not reset the database or cancel bookings.
 
-### 四個導覽連結
+### Navigation Links
 
-| 英文名稱 | 中文用途 |
+| Label | Description |
 | --- | --- |
-| `Train Search` | 車次查詢 |
-| `Book Tickets` | 訂票 |
-| `Booking Overview` | 訂單概覽 |
-| `Booking Details` | 訂單詳情 |
+| `Train Search` | Search for available trains |
+| `Book Tickets` | Ticket reservation page |
+| `Booking Overview` | View list of bookings |
+| `Booking Details` | Detailed view of a single booking |
 
-直接點 `Book Tickets` 或 `Booking Details` 只會換頁，不會替你選好車次或訂單。通常需要先從上一頁的資料列表選擇。
+Clicking `Book Tickets` or `Booking Details` directly navigates to the page without pre-selecting a train or booking. These pages typically expect parameters passed from the preceding search or overview page.
 
-## 5. 四個頁面如何操作？
+## 5. Page Operations Guide
 
-### A. Train Search：車次查詢
+### A. Train Search (`index.html`)
 
-欄位的意思：
+Input fields:
 
-| 欄位 | 怎麼填 |
+| Field | Description / Format |
 | --- | --- |
-| `Travel Date` | 必填，可用瀏覽器日期選擇器；送出值為 `YYYY-MM-DD`，範圍為 2026-12-01 至 2027-01-31。 |
-| `Departure Station` | 起站。接上車站 API 後，才會有選項。 |
-| `Arrival Station` | 迄站。接上車站 API 後，才會有選項。 |
-| `Earliest Departure Time` | 選填，最早出發時間；留空不限。 |
-| `Latest Departure Time` | 選填，最晚出發時間；留空不限。 |
+| `Travel Date` | Required. Date picker input; submitted as `YYYY-MM-DD`. Valid range: 2026-12-01 to 2027-01-31. |
+| `Departure Station` | Required origin. Populated once the Station API is connected. |
+| `Arrival Station` | Required destination. Populated once the Station API is connected. |
+| `Earliest Departure Time` | Optional lower bound for departure time; leave blank for no restriction. |
+| `Latest Departure Time` | Optional upper bound for departure time; leave blank for no restriction. |
 
-接線完成後的操作順序：
+Operational flow once connected:
 
-1. 選乘車日期、起站與迄站。
-2. 有需要再填時間範圍。起迄站不能相同，最早時間不能晚於最晚時間。
-3. 按 `Search Trains`。
-4. 在結果表查看車次、出發時間、抵達時間與可用座位數。
-5. 按該列的 `Book This Train`，把所選車次資料帶進訂票頁。
+1. Select travel date, origin station, and destination station.
+2. Optionally specify a departure time range. Origin and destination must not be the same; earliest time cannot be later than latest time.
+3. Click `Search Trains`.
+4. Inspect the results table for train numbers, departure/arrival times, and available seats.
+5. Click `Book This Train` in the row to pass selected train details to the booking page.
 
-### B. Book Tickets：訂票
+### B. Book Tickets (`booking.html`)
 
-正常流程是從車次列表按 `Book This Train` 進入。這樣網址才會帶入車次號碼、日期、起迄站與時間。
+The standard flow enters via clicking `Book This Train` on the search results table, which passes train number, date, stations, and times via URL query parameters.
 
-如果直接開 `booking.html`，沒有帶參數，`Selected Train` 顯示 `No data available` 是正常的。
+If opened directly without URL parameters, `Selected Train` will naturally show `No data available`.
 
-欄位操作：
+Field constraints and behavior:
 
-| 欄位 | 目前行為 |
+| Field | Current Behavior |
 | --- | --- |
-| `Number of Tickets` | 必填，接受 1～5 的整數；預設 1。 |
-| `Seat Preference` | 單張可輸入 `window`（靠窗）、`aisle`（靠走道），或留空。 |
-| `Adjacent Seats` | 2～5 張可自行勾選是否要求連號。 |
+| `Number of Tickets` | Required integer between 1 and 5; defaults to 1. |
+| `Seat Preference` | For 1 ticket: enter `window`, `aisle`, or leave blank. |
+| `Adjacent Seats` | For 2–5 tickets: checkbox to request contiguous seating. |
 
-這份是有欄位限制的版本：
+Constraint rules in this template:
 
-- 1 張：可以填偏好；連號會取消並停用。
-- 2～5 張：偏好會清空並停用；連號可以勾或不勾，不會自動勾選。
-- 在 2～5 張之間切換：保留連號勾選。
-- 多張改回 1 張：清除連號，偏好恢復可輸入；之前被清掉的文字不會自動恢復。
+- 1 ticket: Preference field is editable; adjacent seats checkbox is unchecked and disabled.
+- 2–5 tickets: Preference field is cleared and disabled; adjacent seats checkbox becomes interactive (not automatically checked).
+- Changing between 2–5 tickets: Preserves the current state of the adjacent seats checkbox.
+- Switching from multiple tickets back to 1: Clears adjacent checkbox, re-enables preference input (previously cleared text is not restored).
 
-偏好文字框沒有字串白名單，單張仍可以輸入 `abc`、`WINDOW` 等內容。合法性由後端判斷；目前尚未接 API，所以不會真的得到後端的合法性回應。整理資料時，未填或只有空白的偏好會成為 `null`，其他非空白文字保留原文。
+The preference text input does not have a frontend whitelist; inputs such as `abc` or `WINDOW` can still be submitted. Validity is verified by the backend once connected. During payload preparation, empty or whitespace-only inputs become `null`, while other strings are preserved as-is.
 
-接線完成後，按 `Confirm Booking` 會送出需求，結果放在 `Booking Result`。配位、剩餘座位與失敗原因由後端決定，前端負責顯示。
+Once connected, clicking `Confirm Booking` submits the payload. Results display under `Booking Result`. Seat allocation, remaining seats, and error reasons are determined by the backend; the frontend displays the returned data.
 
-### C. Booking Overview：訂單概覽
+### C. Booking Overview (`bookings.html`)
 
-接線完成後：
+Operational flow once connected:
 
-1. 先在 `Current User` 選擇要查的使用者。
-2. `Booking ID` 留空，代表查他的全部訂單，包含已取消的訂單。
-3. 如果只想查某筆，就輸入訂單編號。
-4. 按 `Search Bookings`。
-5. 在結果列表點訂單編號或該列的 `View Details`，進入詳情頁。
+1. Select the target user under `Current User`.
+2. Leaving `Booking ID` empty queries all bookings for that user (including canceled ones).
+3. Enter a specific booking ID to query a single reservation.
+4. Click `Search Bookings`.
+5. Click a booking ID or `View Details` in the table to open the details page.
 
-結果可能是多筆、一筆或空列表；空列表不一定是程式出錯，也可能是沒有符合的訂單。
+Results may return multiple rows, one row, or an empty list. An empty list simply means no matching records were found.
 
-### D. Booking Details：訂單詳情
+### D. Booking Details (`booking-detail.html`)
 
-正常流程是從訂單列表選一筆，讓網址帶有 `booking_id`。
+The standard flow enters from the overview page with a `booking_id` in the URL query string.
 
-接線完成後，可查看使用者、車次、乘車區間、時間、票數、全部座位、偏好與連號達成結果，以及訂單狀態。
+Once connected, this page displays user, train, itinerary segment, times, ticket count, allocated seat numbers, preferences/adjacent fulfillment, and booking status.
 
-- `Back to Booking Overview`：返回概覽。
-- `Cancel Booking`：要求後端取消整筆訂單。
-- 一筆訂單有多張票時，取消以整筆為單位，不是只取消其中一張。
-- 後端取消成功後，才能顯示已取消與釋出座位；歷史訂單仍保留。
+- `Back to Booking Overview`: Returns to the overview table.
+- `Cancel Booking`: Sends a request to cancel the entire booking.
+- When a booking contains multiple tickets, cancellation applies to the whole booking, not individual seats.
+- Once successfully canceled by the backend, the status updates to canceled and seats are released; historical records remain.
 
-## 6. 之後接 API，要找哪裡？
+## 6. API Integration Guide (`main.js`)
 
-在 `js/main.js` 搜尋 `TODO`。TODO 表示待完成的程式位置，註解本身不會執行。
+Search for `TODO` in `js/main.js`. TODO comments mark locations where integration code needs to be implemented.
 
-| 功能 | 主要位置 | 收到資料後使用的顯示工具 |
+| Feature | Primary Location in `main.js` | Rendering Helper Function |
 | --- | --- | --- |
-| 使用者名單（已呼叫） | `loadUsers()`，網址在 `config.js` | 函式內建立使用者選項 |
-| 車站 | `initializeSearch()` 的 GET /stations TODO | `renderStations(response)` |
-| 車次 | `initializeSearch()` 的 GET /schedules TODO | `renderSchedules(response, params)` |
-| 訂票 | `initializeBooking()` 的 POST /bookings TODO | `renderBookingResult(response)` |
-| 訂單列表 | `initializeBookings()` 的 GET /bookings TODO | `renderBookings(response)` |
-| 單筆詳情 | `prepareDetailLookup()` 的 GET /bookings TODO | `renderBookingDetails(response)` |
-| 取消 | `initializeDetail()` 的 POST /bookings/{booking_id}/cancel TODO | `renderBookingDetails([response])` |
+| User list (already active) | `loadUsers()`, URL in `config.js` | Built-in option generation |
+| Stations | `initializeSearch()` at `GET /stations` TODO | `renderStations(response)` |
+| Train search | `initializeSearch()` at `GET /schedules` TODO | `renderSchedules(response, params)` |
+| Ticket reservation | `initializeBooking()` at `POST /bookings` TODO | `renderBookingResult(response)` |
+| Booking overview | `initializeBookings()` at `GET /bookings` TODO | `renderBookings(response)` |
+| Single booking details | `prepareDetailLookup()` at `GET /bookings` TODO | `renderBookingDetails(response)` |
+| Cancellation | `initializeDetail()` at `POST /bookings/{booking_id}/cancel` TODO | `renderBookingDetails([response])` |
 
-`collectSearch()`、`collectBookingRequest()`、`collectBookingsQuery()` 負責整理輸入；`render...` 負責顯示。它們本身不代表已經發出 API 請求。
+Functions named `collectSearch()`, `collectBookingRequest()`, and `collectBookingsQuery()` parse and sanitize form inputs; `render...` functions render data to the DOM. They do not send network requests on their own.
 
-訂票與訂單操作應使用目前選到的 `user_id`，不要固定寫某個人的編號。API 請求、回應、失敗提示等接線工作，需要依正式提供的格式完成，不是只把 TODO 改成網址就好。
+Booking and query actions must use the dynamically selected `user_id` rather than a hard-coded ID. Ensure network requests, headers, payload formats, and error handling strictly follow the course API specification.
 
-本版的 `adjacent` 是前端草稿欄位。正式接線前要確認後端是否接受這個名稱。這份介面採「多張可選連號」的規則；原 PDF 的多張強制連號要求不同，需先確認組內採用的正式規格。
+*Note on `adjacent`:* The `adjacent` field is currently a frontend draft parameter. Verify that your backend accepts this field name before final integration.
 
-## 7. 現在就能做的前端檢查
+## 7. Frontend Verification Checklist
 
-這些不需要真正建立訂單：
+You can test these interactions immediately without backend implementation:
 
-| 操作 | 應看到什麼 |
+| Test Action | Expected Result |
 | --- | --- |
-| 點四個導覽連結 | 四頁都能開，版面與樣式正常。 |
-| 訂票頁選 1 張 | 偏好可輸入，連號未勾且停用。 |
-| 單張先填 window，再改 2 張 | 偏好清空並停用，連號可操作。 |
-| 2 張勾連號，再改 5 張 | 保持勾選。 |
-| 改回 1 張 | 連號清除並停用。 |
-| 單張輸入 abc | 能輸入；目前不會收到後端判斷結果。 |
-| 票數留空、0、6 或 1.5，按確認 | 瀏覽器阻止正常表單送出。 |
-| 開訂票頁但未帶車次 | 所選車次顯示空資料提示。 |
-| 沒有使用者 API | 顯示載入失敗，選單不加入假名單。 |
+| Click all four navigation links | All four pages render properly with styles applied. |
+| Set ticket count to 1 on booking page | Preference input is active; adjacent seats checkbox is unchecked and disabled. |
+| Enter `window` for 1 ticket, then switch to 2 tickets | Preference input is cleared and disabled; adjacent seats checkbox becomes interactive. |
+| Check adjacent seats with 2 tickets, then change count to 5 | Checkbox remains checked. |
+| Switch back to 1 ticket | Adjacent seats checkbox is cleared and disabled. |
+| Enter `abc` into single-ticket preference | Value is accepted in input (backend will validate upon API integration). |
+| Submit booking with ticket count empty, 0, 6, or 1.5 | Native browser validation blocks form submission. |
+| Open booking page without URL train parameters | Selected train section indicates no data available. |
+| Stop backend service | UI displays load failure message; user dropdown remains empty without mock injection. |
 
-若已提供使用者 API，再測：選一位使用者，切換四頁並重新整理，應保留選擇；選回提示選項後換頁，應維持未選擇。
+If user API is reachable: select a user, navigate across pages, and refresh. The selected user should remain persisted. Selecting `Select a user` should reset state.
 
-這些是前端檢查，不等於已驗證真實配位、取消或資料庫交易。
+## 8. Troubleshooting
 
-## 8. 常見問題
+### Text appears unstyled or misaligned?
+Verify that `style.css` is located inside `frontend/css/` without duplicate or numbered filenames.
 
-### 頁面有字，但沒有顏色或排列？
+### Navigation links return 404 Not Found?
+Ensure all four HTML files are placed in the root of `frontend/`: `index.html`, `booking.html`, `bookings.html`, and `booking-detail.html`.
 
-確認 `style.css` 放在 `css` 資料夾，沒有附加括號編號。CSS 路徑錯誤時，HTML 仍可能顯示，但外觀不同。
-
-### 按導覽後找不到頁面？
-
-確認四個 HTML 都在同一層，名稱是 `index.html`、`booking.html`、`bookings.html`、`booking-detail.html`。
-
-### 看到 Users API returned HTTP 404？
-
-代表 Nginx 無法連到正式後端、後端尚未啟動，或 `GET /users` 回應失敗。使用 `docker compose logs frontend backend` 查看原因。
+### "Users API returned HTTP 404"?
+Nginx cannot reach the backend service, the backend has not finished starting, or the `GET /users` route failed. Run `docker compose logs frontend backend` to inspect container logs.
