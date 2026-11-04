@@ -31,3 +31,7 @@ python -m unittest discover -s tests -p 'test_*.py' -v
 ```
 
 The station tests call the real Flask route, service and SQL repository against an isolated PostgreSQL schema. They verify HTTP 200, JSON fields, empty results, custom station IDs, Unicode names, north-to-south sorting and fresh reads without login. They do not exercise Nginx or browser rendering.
+
+## Schedule API tests
+
+`test_schedules.py` adds eight integration tests for response fields and sorting, both directions and skipped stops, dates without runs, inclusive time bounds at the requested station, parameter errors, overlapping versus adjoining intervals, sold-out trains and whole-journey availability, and exclusion of cancelled or unrelated bookings. Use the all-tests command above, or select `-p test_schedules.py` to run only these cases. The suite uses test ticket records directly; booking creation/concurrency is not tested by these cases.

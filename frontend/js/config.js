@@ -25,5 +25,6 @@
 window.MINI_THSR_CONFIG = Object.freeze({
   usersUrl: "/users",
   stationsUrl: "/stations",
+  schedulesUrl: "/schedules",
   requestTimeoutMs: 10000
 });

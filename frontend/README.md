@@ -223,7 +223,7 @@ Search for `TODO` in `js/main.js`. TODO comments mark locations where integratio
 | --- | --- | --- |
 | User list (already active) | `loadUsers()`, URL in `config.js` | Built-in option generation |
 | Stations (already active) | `loadStations()`, called by `initializeSearch()` | `renderStations(response)` |
-| Train search | `initializeSearch()` at `GET /schedules` TODO | `renderSchedules(response, params)` |
+| Train search (already active) | `initializeSearch()` calls `GET /schedules` | `renderSchedules(response, params)` |
 | Ticket reservation | `initializeBooking()` at `POST /bookings` TODO | `renderBookingResult(response)` |
 | Booking overview | `initializeBookings()` at `GET /bookings` TODO | `renderBookings(response)` |
 | Single booking details | `prepareDetailLookup()` at `GET /bookings` TODO | `renderBookingDetails(response)` |
@@ -266,4 +266,4 @@ Nginx cannot reach the backend service, the backend has not finished starting, o
 
 ## Station loading
 
-The search page automatically calls the configured stationsUrl (`/stations`) and populates both station dropdowns in server order. Empty lists and failed requests show a message; reload to retry. Nginx forwards this endpoint to Flask. Loading stations does not yet implement train search. The example button remains an explicitly labeled preview and may replace the displayed options with demo values.
+The search page automatically calls the configured stationsUrl (`/stations`) and populates both station dropdowns in server order. Empty lists and failed requests show a message; reload to retry. Nginx forwards this endpoint to Flask. Submitting the search form calls GET /schedules with the selected date, stations and optional time bounds. The example button remains an explicitly labeled preview and may replace the displayed options with demo values.

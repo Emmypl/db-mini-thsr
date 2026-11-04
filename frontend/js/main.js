@@ -4,8 +4,8 @@
  * Start with loadUsers(): it fetches users from the backend and fills the top-right dropdown.
  * Then review saveCurrentUser(): it remembers the selected ID across page navigation.
  *
- * GET /users, GET /stations, POST /bookings, and booking-details GET /bookings make actual requests.
- * The backend must implement these endpoints. Train search, booking overview, and cancellation remain TODO.
+ * GET /users, GET /stations, GET /schedules, POST /bookings, and booking-details GET /bookings make actual requests.
+ * The backend must implement these endpoints. Booking overview and cancellation remain TODO.
  * TODO marks code that must be implemented later; comments are not executable.
  * Functions starting with render display data; examples/ui-example.js supplies clearly marked previews.
  * redirectToBookingDetails() opens the details page with the ID returned by a successful booking.
@@ -295,7 +295,7 @@
       })) throw new Error("The stations response has an invalid format.");
       renderStations(stations);
       selects.forEach(function (select) { select.disabled = stations.length === 0; });
-      setMessage("search-message", stations.length ? "Select your departure and arrival stations. Train search is not available yet." : "No stations are available.");
+      setMessage("search-message", stations.length ? "Select your departure and arrival stations." : "No stations are available.");
     } catch (error) {
       renderStations([]);
       const reason = error.name === "AbortError" ? "The request timed out." : error.message;
@@ -336,7 +336,7 @@
 
   // Render each schedule as a row with a booking link.
   // Only display received data; do not generate trains or query the database here.
-  // Call this function after the future GET /schedules request succeeds.
+  // Called after a successful GET /schedules request.
   // Include trains with zero remaining seats in the results.
   function renderSchedules(schedules, searchParams) {
     const tbody = document.getElementById("schedule-list");
@@ -360,8 +360,8 @@
   }
 
   // Initialize train-search interactions; return on pages without search-form.
-  // Station options load from the backend; schedule search is implemented separately.
-  // After integration, reject identical stations or an earliest time later than the latest time.
+  // Station options and schedule search use the backend APIs.
+  // Reject identical stations or an earliest time later than the latest time.
   function initializeSearch() {
     const form = document.getElementById("search-form");
     if (!form) return;
@@ -376,9 +376,16 @@
     }
 
     loadStations();
+    let searchController = null;
+    let searchNumber = 0;
+    form.addEventListener("input", function () {
+      searchNumber += 1;
+      if (searchController) searchController.abort();
+      emptyTable(document.getElementById("schedule-list"), 5, "Submit the search to see matching trains.");
+    });
     // submit fires when the form is submitted. The browser first validates required fields,
     // and may display built-in validation feedback before this handler executes.
-    form.addEventListener("submit", function (event) {
+    form.addEventListener("submit", async function (event) {
       // Prevent default navigation so JavaScript handles form submission.
       event.preventDefault();
       const params = collectSearch();
@@ -394,10 +401,32 @@
         setMessage("search-message", "The earliest departure time cannot be later than the latest departure time.", true); return;
       }
 
-      // TODO: Request train schedules here and call renderSchedules(response, params).
-      // Use /schedules per the PDF, passing date, stations, and optional time limits.
-      // renderSchedules() builds links using bookingUrl() to pass data to the booking page.
-      setMessage("search-message", "Train search is not available yet.");
+      if (searchController) searchController.abort();
+      const controller = new AbortController();
+      searchController = controller;
+      const requestNumber = ++searchNumber;
+      const timeout = window.setTimeout(function () { controller.abort(); }, config.requestTimeoutMs);
+      emptyTable(document.getElementById("schedule-list"), 5, "Loading trains…");
+      setMessage("search-message", "Searching trains…");
+      try {
+        const response = await fetch(config.schedulesUrl + "?" + params.toString(), {
+          headers: { "Accept": "application/json" }, cache: "no-store", signal: controller.signal
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error && data.error.message || "Schedules API returned HTTP " + response.status + ".");
+        if (!Array.isArray(data)) throw new Error("The schedules response has an invalid format.");
+        if (requestNumber !== searchNumber) return;
+        renderSchedules(data, params);
+        setMessage("search-message", data.length ? "Found " + data.length + " train(s)." : "No matching trains found.");
+      } catch (error) {
+        if (requestNumber !== searchNumber) return;
+        emptyTable(document.getElementById("schedule-list"), 5, "No results available.");
+        const reason = error.name === "AbortError" ? "The request timed out." : error.message;
+        setMessage("search-message", "Unable to search trains. " + reason, true);
+      } finally {
+        window.clearTimeout(timeout);
+        if (searchController === controller) searchController = null;
+      }
     });
   }
 
