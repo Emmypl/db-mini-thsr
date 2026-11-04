@@ -1,88 +1,218 @@
-"""Create tables and import CSV data if the database is not initialized."""
+"""Atomically import course CSVs and generate seats and dated train runs."""
 
 import csv
 import logging
+import re
+from datetime import date, time, timedelta
+from pathlib import Path
 
 import psycopg
-from psycopg import sql  # safely build SQL containing table and column names
+from app.core import config
+from app.core.database import get_connection
+from psycopg import sql
 
-from app.core import config  # path settings such as SCHEMA_FILE and DATA_DIR
-from app.core.database import get_connection  # open a database connection
-
-# Logger named "db_init", shown in each log line
 logger = logging.getLogger("db_init")
+START_DATE = date(2026, 12, 1)
+END_DATE = date(2027, 1, 31)
+TABLES = (
+    "users",
+    "stations",
+    "trains",
+    "train_operating_days",
+    "train_stops",
+    "seats",
+    "train_runs",
+    "bookings",
+    "tickets",
+)
+# A transactional table comment marks successful import, without a tenth table.
+INITIALIZED = "mini-thsr:csv-import:v1"
 
-# Tables to import, read in order from data/<table>.csv
-# With foreign keys, referenced tables must come first (e.g. users before orders)
-TABLES = ["users", "stations"]
+
+def read_csv(path: Path) -> tuple[list[str], list[dict[str, str]]]:
+    """Accept UTF-8 BOM, surrounding whitespace and blank lines; reject bad rows."""
+    with path.open(encoding="utf-8-sig", newline="") as stream:
+        reader = csv.reader(stream)
+        headers = [value.strip() for value in next(reader, [])]
+        if (
+            not headers
+            or any(not h for h in headers)
+            or len(set(headers)) != len(headers)
+        ):
+            raise ValueError(f"{path.name}: missing or duplicate column names")
+        rows = []
+        for line, values in enumerate(reader, 2):
+            if not any(value.strip() for value in values):
+                continue
+            if len(values) != len(headers):
+                raise ValueError(f"{path.name}:{line}: wrong number of fields")
+            rows.append(
+                dict(zip(headers, (value.strip() for value in values), strict=True))
+            )
+    return headers, rows
 
 
-def is_initialized(conn: psycopg.Connection) -> bool:
-    """Check whether the database has already been initialized."""
-    # An existing users table means initialization already succeeded;
-    # to_regclass() returns NULL when the table does not exist
-    row = conn.execute("SELECT to_regclass('users') IS NOT NULL AS ok").fetchone()
-    return row["ok"]
-
-
-def import_csv(conn: psycopg.Connection, table: str) -> None:
-    """Import data/<table>.csv into the table with the same name."""
-    path = config.DATA_DIR / f"{table}.csv"
-    # utf-8-sig strips the BOM that Excel adds at the start of the file
-    with path.open(encoding="utf-8-sig", newline="") as f:
-        # The first row is the column names, and the rest are data.
-        # Trim column names and values, and turn empty values into None (NULL).
-        # Skip rows with no values, such as blank lines or ",," left by Excel
-        reader = csv.reader(f)
-        columns = [name.strip() for name in next(reader)]
-        rows = [
-            [value.strip() or None for value in row]
-            for row in reader
-            if any(value.strip() for value in row)
-        ]
-
-    # Build: INSERT INTO table (col1, col2, ...) VALUES (%s, %s, ...)
-    # sql.Identifier quotes names, preventing SQL injection and keyword clashes
+def insert_rows(conn, table, columns, rows):
     query = sql.SQL("INSERT INTO {} ({}) VALUES ({})").format(
-        sql.Identifier(table),  # table name
-        sql.SQL(", ").join(map(sql.Identifier, columns)),  # list of column names
-        sql.SQL(", ").join(sql.Placeholder() * len(columns)),  # one %s per column
+        sql.Identifier(table),
+        sql.SQL(", ").join(map(sql.Identifier, columns)),
+        sql.SQL(", ").join(sql.Placeholder() for _ in columns),
     )
+    with conn.cursor() as cursor:
+        cursor.executemany(query, rows)
+    logger.info("import %s: %d rows", table, len(rows))
 
-    # A cursor runs SQL on the connection. We need one here because
-    # executemany() (run the query once per row) only exists on cursors
-    with conn.cursor() as cur:
-        cur.executemany(query, rows)
-    logger.info("import %s: %d rows", path.name, len(rows))
+
+def import_reference(conn, data_dir):
+    for table, columns in (
+        ("users", ["user_id", "name", "phone"]),
+        ("stations", ["station_id", "name", "seq"]),
+    ):
+        headers, records = read_csv(data_dir / f"{table}.csv")
+        if set(headers) != set(columns):
+            raise ValueError(f"{table}.csv: expected columns {columns}")
+        if any(not r[columns[0]] for r in records):
+            raise ValueError(f"{table}.csv: empty identifier")
+        insert_rows(
+            conn,
+            table,
+            columns,
+            [tuple(r[c] or None for c in columns) for r in records],
+        )
+
+
+def import_timetable(conn, data_dir):
+    stations = conn.execute("SELECT station_id FROM stations ORDER BY seq").fetchall()
+    station_ids = [station["station_id"] for station in stations]
+    metadata = {"train_no", "direction", "days", "cars"}
+    headers, records = read_csv(data_dir / "timetable.csv")
+    if metadata & set(station_ids) or set(headers) != metadata | set(station_ids):
+        raise ValueError("timetable.csv: station columns must match stations.csv")
+    for record in records:
+        number, direction, days = (
+            record["train_no"],
+            record["direction"],
+            record["days"],
+        )
+        if not number or direction not in ("S", "N"):
+            raise ValueError(f"timetable.csv: invalid train or direction: {number!r}")
+        if (
+            not days
+            or any(day not in "1234567" for day in days)
+            or len(set(days)) != len(days)
+        ):
+            raise ValueError(f"{number}: invalid operating days")
+        if not re.fullmatch(r"[0-9]+", record["cars"]) or int(record["cars"]) < 1:
+            raise ValueError(f"{number}: cars must be a positive integer")
+        cars = int(record["cars"])
+        stops = []
+        order = station_ids if direction == "S" else list(reversed(station_ids))
+        for station in order:
+            value = record[station]
+            if not value:
+                continue
+            if not re.fullmatch(r"(?:[01][0-9]|2[0-3]):[0-5][0-9]", value):
+                raise ValueError(f"{number}/{station}: invalid HH:MM time")
+            stop_time = time.fromisoformat(value)
+            if stops and stop_time <= stops[-1][3]:
+                raise ValueError(f"{number}: times must increase in travel direction")
+            stops.append((number, len(stops) + 1, station, stop_time))
+        if len(stops) < 2:
+            raise ValueError(f"{number}: at least two stops are required")
+        insert_rows(
+            conn,
+            "trains",
+            ["train_no", "direction", "cars"],
+            [(number, direction, cars)],
+        )
+        insert_rows(
+            conn,
+            "train_operating_days",
+            ["train_no", "weekday"],
+            [(number, int(d)) for d in days],
+        )
+        insert_rows(
+            conn,
+            "train_stops",
+            ["train_no", "stop_seq", "station_id", "stop_time"],
+            stops,
+        )
+        insert_rows(
+            conn,
+            "seats",
+            ["train_no", "car_no", "row_no", "seat_letter"],
+            [
+                (number, car, row, letter)
+                for car in range(1, cars + 1)
+                for row in range(1, 5)
+                for letter in "ABCDE"
+            ],
+        )
+        dates = [
+            START_DATE + timedelta(days=i)
+            for i in range((END_DATE - START_DATE).days + 1)
+        ]
+        insert_rows(
+            conn,
+            "train_runs",
+            ["train_no", "service_date"],
+            [(number, day) for day in dates if str(day.isoweekday()) in days],
+        )
+
+
+def initialize(conn: psycopg.Connection, data_dir: Path, schema_file: Path) -> bool:
+    """Return True after import, False on restart. Never reset an existing database."""
+    with conn.transaction():
+        # Serialize competing startup jobs; READ COMMITTED sees the first job's commit.
+        conn.execute("SELECT pg_advisory_xact_lock(724031, 1)")
+        present = {
+            name
+            for name in TABLES
+            if conn.execute("SELECT to_regclass(%s) AS table_name", (name,)).fetchone()[
+                "table_name"
+            ]
+        }
+        if present and present != set(TABLES):
+            raise RuntimeError(
+                "Incomplete or legacy schema: apply a reviewed migration, or use a fresh test database. No data was changed."
+            )
+        if present:
+            marker = conn.execute(
+                "SELECT obj_description('train_runs'::regclass, 'pg_class') AS marker"
+            ).fetchone()["marker"]
+            if marker == INITIALIZED:
+                logger.info("database already initialized, skip")
+                return False
+            for name in TABLES:
+                if conn.execute(
+                    sql.SQL("SELECT EXISTS (SELECT 1 FROM {}) AS populated").format(
+                        sql.Identifier(name)
+                    )
+                ).fetchone()["populated"]:
+                    raise RuntimeError(
+                        "Existing data has no completed-import marker. A reviewed migration is required; no data was changed."
+                    )
+        else:
+            conn.execute(schema_file.read_text(encoding="utf-8"))
+        import_reference(conn, data_dir)
+        import_timetable(conn, data_dir)
+        conn.execute(
+            sql.SQL("COMMENT ON TABLE train_runs IS {}").format(
+                sql.Literal(INITIALIZED)
+            )
+        )
+    logger.info("database initialized")
+    return True
 
 
 def main() -> None:
-    # Configure log output (same format as in app/__init__.py)
     logging.basicConfig(
         level=config.LOG_LEVEL,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
-
-    # Open a database connection; it is closed automatically when leaving the block
     with get_connection() as conn:
-        if is_initialized(conn):
-            logger.info("database already initialized, skip")
-            return
-
-        # Start a transaction: if any step fails, all changes are rolled back,
-        # so we never end up with tables created but data only half imported
-        with conn.transaction():
-            logger.info("run %s", config.SCHEMA_FILE.name)
-            # Run schema.sql to create all tables
-            conn.execute(config.SCHEMA_FILE.read_text(encoding="utf-8"))
-
-            # Import each table's CSV in the order of TABLES
-            for table in TABLES:
-                import_csv(conn, table)
-
-    logger.info("database initialized")
+        initialize(conn, config.DATA_DIR, config.SCHEMA_FILE)
 
 
-# Only call main() when executed directly with `python db_init.py`
 if __name__ == "__main__":
     main()

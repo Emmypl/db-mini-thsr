@@ -185,27 +185,13 @@ cp .env.example .env
 
 ## Data Initialization
 
-On initial startup, `db-init` runs `schema/schema.sql` and loads CSV files located in `data/`. The operation runs inside a single database transaction; failure at any step triggers a rollback. If tables already exist, initialization is skipped to prevent duplicate records.
+`db_init.py` imports users.csv, stations.csv and timetable.csv automatically on a fresh database. It normalizes train operating days and stop times, generates 20 seats per car and creates runs on eligible dates from 2026-12-01 through 2027-01-31. CSV headers may be reordered; station identifiers are read from the supplied dataset. Northbound stop numbering follows travel direction.
 
-### CSV Files
+Schema creation, inserts and a successful-import marker (a comment on train_runs) commit together. Any invalid CSV rolls the transaction back, allowing a corrected dataset to be retried. An advisory transaction lock serializes simultaneous initializer processes. Restarting an initialized database skips import without touching orders or rereading CSV files.
 
-CSV datasets reside in `data/`. Filenames must match table names (e.g., `users.csv` loads into `users`). The first row must contain column headers matching table attribute names (e.g., `user_id,name,phone`), encoded in UTF-8.
+A complete empty schema can be populated. A legacy or incomplete schema, or an unmarked populated schema, requires a reviewed migration. The initializer fails rather than deleting or silently overwriting existing data. Do not reset a database containing orders you need to keep. For disposable test data only, the project's documented `docker compose down -v` reset creates a fresh database on the next startup.
 
-### Adding a New Table
-
-1. Add the `CREATE TABLE` statement to `schema/schema.sql`.
-2. Place the initial data file in `data/<table_name>.csv`.
-3. Add the table name to the `TABLES` list in [`db_init.py`](db_init.py) (respect foreign key order; referenced tables must precede dependent tables).
-4. Reset and restart the database.
-
-### Resetting the Database
-
-Because initialization only executes when tables are absent, modifying `schema.sql`, updating CSV files, or changing credentials requires clearing the database volume:
-
-```bash
-docker compose down -v
-docker compose up --build
-```
+PostgreSQL integration tests and instructions are in `tests/test_import.py` and `tests/README.md` at the repository root.
 
 ## Development Workflow
 

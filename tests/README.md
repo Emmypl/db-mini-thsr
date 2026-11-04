@@ -11,3 +11,13 @@ The script creates an isolated schema inside a transaction, loads the current DD
 For the local test container, copy the SQL files to a fresh temporary directory in the container, preserving the tests/ and schema/ layout, and run psql with -f pointing to tests/schema_constraints.sql. The relative include loads schema/schema.sql.
 
 Coverage includes foreign keys, seat coordinates, operating dates, timetable precision, journey order, matching trains, option compatibility and cancellation state. This is not a booking API or concurrency test. Ticket count, actual seat availability, operating weekdays and adjacency allocation still require importer/backend tests.
+
+## CSV import integration tests
+
+With backend dependencies installed, set TEST_DATABASE_URL to a disposable PostgreSQL 17 database and run from the repository root:
+
+```sh
+python -m unittest discover -s tests -p test_import.py -v
+```
+
+Each test creates a uniquely named schema and removes only that schema afterwards. Coverage includes public CSVs, custom station IDs and reordered headers, northbound stop order, leading zeros, weekday and weekend dates, seat generation, empty precreated schemas, rollback and retry after malformed inputs, preservation of orders on restart, safe rejection of legacy data and simultaneous initializers. The connection needs permission to create schemas. Without TEST_DATABASE_URL these integration tests are skipped, not passed.

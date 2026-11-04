@@ -18,7 +18,7 @@ Scope of the current official example:
 
 - The frontend provides pages for train search, booking, the booking list, and booking details.
 - The backend only demonstrates `GET /users`, a layered structure, and parameterized SQL.
-- Database initialization currently only creates and imports `users`.
+- Database initialization creates the full schema, imports users, stations and timetables, and generates seats and dated train runs.
 - The frontend is already wired to the official `GET /users` example through Nginx.
 - The station, train, and booking pages also include clearly labeled frontend-only demo data; all other official APIs remain for students to implement.
 
@@ -112,3 +112,11 @@ curl http://localhost:8000/users
 Following the course API specification, students must implement the tables, CSV import, train search, segment-based seat availability, booking, booking lookup, cancellation, and transaction and concurrency control. Do not hard-code responses based on the public data; during grading, the CSVs in `data/` will be replaced with different files of the same names.
 
 For details on the frontend files and the places that still need to be wired up, see [`frontend/README.md`](frontend/README.md). `frontend/examples/` only contains clearly labeled UI demo data and does not replace the APIs students are expected to build.
+
+## Timetable initialization
+
+On a fresh database, initialization imports all three course CSVs in one transaction. Station IDs come from stations.csv; northbound stops are ordered in travel direction. Each car receives four rows of A–E seats. Train runs are generated for operating weekdays from 2026-12-01 through 2027-01-31.
+
+A successful import is marked transactionally in the train_runs table comment. Subsequent starts skip import and preserve bookings, even if the CSV files are unavailable. An empty, complete schema can also be populated. Legacy, incomplete, or populated unmarked databases fail with a migration message; they are never automatically erased. If preserving existing data matters, apply a reviewed migration rather than resetting the database.
+
+This change imports reference data; the remaining train, seat and booking APIs are not implemented yet. See tests/README.md for PostgreSQL integration tests.
