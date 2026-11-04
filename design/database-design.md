@@ -2,7 +2,7 @@
 
 Version 1 — 4 November 2026
 
-This design supports B1–B6 and A1–A4 using PostgreSQL and handwritten SQL. The initial DDL is now available in ../schema/schema.sql. The project owner has verified creation of all nine tables in a PostgreSQL test database. The next steps are to test constraint behavior and write the CSV importer.
+This design supports B1–B6 and A1–A4 using PostgreSQL and handwritten SQL. The initial DDL is now available in ../schema/schema.sql. The schema and 25 constraint rejection cases have passed tests on PostgreSQL 17, together with valid fixtures and cancellation history checks. See ../tests/schema_constraints.sql. The next step is to write the CSV importer; booking API and concurrency behavior remain unimplemented.
 
 ## Entities and fields
 

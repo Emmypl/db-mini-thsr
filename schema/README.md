@@ -20,4 +20,4 @@ The existing starter importer checks only whether `users` exists. It must be upd
 
 ## Validation status
 
-The schema has been reviewed against the design. The project owner executed it in a PostgreSQL test database and reported all nine tables in the table listing. Constraint behavior and concurrency have not yet been tested.
+Validated on PostgreSQL 17 on 4 November 2026 using tests/schema_constraints.sql: all nine tables and three additional indexes were created, 25 invalid operations were rejected with the expected SQLSTATE, and valid records, adjoining journeys and cancellation with retained history succeeded. The test transaction was rolled back. Booking API behavior and concurrency remain untested.

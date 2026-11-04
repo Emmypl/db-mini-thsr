@@ -1,0 +1,13 @@
+# Database constraint checks
+
+Run from the repository root against a test PostgreSQL 17 database:
+
+```sh
+psql "$TEST_DATABASE_URL" -X -f tests/schema_constraints.sql
+```
+
+The script creates an isolated schema inside a transaction, loads the current DDL, verifies valid records and 25 expected constraint rejections, and rolls everything back. It does not modify public tables. It exits on the first unexpected result. An existing schema named thsr_constraint_test causes a safe failure rather than deletion.
+
+For the local test container, copy the SQL files to a fresh temporary directory in the container, preserving the tests/ and schema/ layout, and run psql with -f pointing to tests/schema_constraints.sql. The relative include loads schema/schema.sql.
+
+Coverage includes foreign keys, seat coordinates, operating dates, timetable precision, journey order, matching trains, option compatibility and cancellation state. This is not a booking API or concurrency test. Ticket count, actual seat availability, operating weekdays and adjacency allocation still require importer/backend tests.
