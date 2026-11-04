@@ -1,6 +1,6 @@
 # Mini THSR Ticket Booking System
 
-This is a starter template for a database systems final project. It provides a working frontend UI, a Docker runtime environment, PostgreSQL, and a sample `GET /users` backend endpoint. The station, train, seat, and booking features are left for students to design and implement.
+This is a starter template for a database systems final project. It provides a working frontend UI, a Docker runtime environment, PostgreSQL, and working `GET /users` and `GET /stations` endpoints. Train search, seat availability and booking APIs remain to be implemented.
 
 ## Project Contents
 
@@ -14,12 +14,12 @@ This is a starter template for a database systems final project. It provides a w
 └── .env.example              # Local environment configuration template
 ```
 
-Scope of the current official example:
+Current implementation:
 
 - The frontend provides pages for train search, booking, the booking list, and booking details.
-- The backend only demonstrates `GET /users`, a layered structure, and parameterized SQL.
+- The backend implements `GET /users` and `GET /stations` through a layered structure and handwritten SQL.
 - Database initialization creates the full schema, imports users, stations and timetables, and generates seats and dated train runs.
-- The frontend is already wired to the official `GET /users` example through Nginx.
+- The frontend loads users and stations from the backend through Nginx.
 - The station, train, and booking pages also include clearly labeled frontend-only demo data; all other official APIs remain for students to implement.
 
 ## Requirements
@@ -68,7 +68,7 @@ The first run downloads images and builds containers, so it may take a few minut
 - Frontend: <http://localhost:8080>
 - Backend Users API: <http://localhost:8000/users>
 
-Nginx proxies the frontend's `/users` requests to the backend, so the user menu in the top-right corner loads the users from the CSV. Stations, trains, and booking are not yet wired to official APIs; the **Load Example Stations and Trains** button on the home page is only for previewing the UI.
+Nginx proxies the frontend's `/users` requests to the backend, so the user menu in the top-right corner loads the users from the CSV. Stations load automatically from the database. Train search and booking are not yet backed by implemented APIs; the **Load Example Stations and Trains** button on the home page is only for previewing the UI.
 
 ## Stopping and Resetting
 
@@ -120,3 +120,7 @@ On a fresh database, initialization imports all three course CSVs in one transac
 A successful import is marked transactionally in the train_runs table comment. Subsequent starts skip import and preserve bookings, even if the CSV files are unavailable. An empty, complete schema can also be populated. Legacy, incomplete, or populated unmarked databases fail with a migration message; they are never automatically erased. If preserving existing data matters, apply a reviewed migration rather than resetting the database.
 
 This change imports reference data; the remaining train, seat and booking APIs are not implemented yet. See tests/README.md for PostgreSQL integration tests.
+
+## Station list
+
+`GET http://localhost:8000/stations` returns HTTP 200 and an array containing only `station_id` and `name`, ordered by the station's north-to-south `seq`. An empty database returns `[]`. No user selection or login is required. Nginx also forwards `/stations` on port 8080, and the search page loads both station dropdowns automatically. Loading failures display an error; reload the page to retry. Explicitly selected UI demo data remains a separate preview.

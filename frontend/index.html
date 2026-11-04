@@ -56,12 +56,12 @@
             <p id="date-help" class="help">Choose a date from 2026-12-01 through 2027-01-31.</p></div>
           <div class="field"><label for="from-station">Departure Station <span class="required">Required</span></label>
 
-            <!-- TODO: Connect GET /stations and populate the station options using renderStations().
+            <!-- GET /stations populates the station options using renderStations().
                  select defines a dropdown and option defines an entry. Only a placeholder is currently present; do not hard-code stations. -->
             <select id="from-station" name="from_station_id" required><option value="">Select a station</option></select></div>
           <div class="field"><label for="to-station">Arrival Station <span class="required">Required</span></label>
 
-            <!-- TODO: Populate destinations from the same GET /stations response; use station_id for values and name for labels. -->
+            <!-- Destinations use the same GET /stations response; use station_id for values and name for labels. -->
             <select id="to-station" name="to_station_id" required><option value="">Select a station</option></select></div>
           <div class="field"><label for="earliest-time">Earliest Departure Time <span class="optional">Optional</span></label>
             <input id="earliest-time" name="departure_time_from" type="time" step="60"><p class="help">Leave blank for no time restriction.</p></div>

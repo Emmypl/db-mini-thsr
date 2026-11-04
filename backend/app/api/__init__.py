@@ -1,5 +1,6 @@
 from flask import Flask
 
+from app.api.stations import stations_bp
 from app.api.users import users_bp  # Blueprint (a group of routes) for user APIs
 
 
@@ -13,5 +14,6 @@ def register_blueprints(app: Flask) -> None:
     the code easier to find and change.
     """
     app.register_blueprint(users_bp)
+    app.register_blueprint(stations_bp)
 
     # TODO: register the Blueprint of each new API module here

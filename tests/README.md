@@ -21,3 +21,13 @@ python -m unittest discover -s tests -p test_import.py -v
 ```
 
 Each test creates a uniquely named schema and removes only that schema afterwards. Coverage includes public CSVs, custom station IDs and reordered headers, northbound stop order, leading zeros, weekday and weekend dates, seat generation, empty precreated schemas, rollback and retry after malformed inputs, preservation of orders on restart, safe rejection of legacy data and simultaneous initializers. The connection needs permission to create schemas. Without TEST_DATABASE_URL these integration tests are skipped, not passed.
+
+## Station API tests
+
+With TEST_DATABASE_URL set as above, run all Python integration tests:
+
+```sh
+python -m unittest discover -s tests -p 'test_*.py' -v
+```
+
+The station tests call the real Flask route, service and SQL repository against an isolated PostgreSQL schema. They verify HTTP 200, JSON fields, empty results, custom station IDs, Unicode names, north-to-south sorting and fresh reads without login. They do not exercise Nginx or browser rendering.

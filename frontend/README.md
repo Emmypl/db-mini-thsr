@@ -9,7 +9,7 @@
 | `bookings.html` | Booking Overview page: booking ID search field and list of bookings for the current user. |
 | `booking-detail.html` | Booking Details page: displays complete details of an individual booking, with a Cancel Booking button. |
 | `css/style.css` | Shared styling across all four pages: colors, fonts, layout grid, buttons, tables, and mobile responsive styles. |
-| `js/config.js` | User API URL and request timeout configurations. |
+| `js/config.js` | Users and stations API URLs and request timeout configuration. |
 | `js/main.js` | Shared functionality across all four pages: fetching users, persisting user selection, reading inputs, toggling seat requirement options, rendering data, and API integration hooks. |
 
 HTML determines content structure, CSS controls visual presentation, and JavaScript handles interactions and data. These seven files contain no backend logic or database access.
@@ -222,7 +222,7 @@ Search for `TODO` in `js/main.js`. TODO comments mark locations where integratio
 | Feature | Primary Location in `main.js` | Rendering Helper Function |
 | --- | --- | --- |
 | User list (already active) | `loadUsers()`, URL in `config.js` | Built-in option generation |
-| Stations | `initializeSearch()` at `GET /stations` TODO | `renderStations(response)` |
+| Stations (already active) | `loadStations()`, called by `initializeSearch()` | `renderStations(response)` |
 | Train search | `initializeSearch()` at `GET /schedules` TODO | `renderSchedules(response, params)` |
 | Ticket reservation | `initializeBooking()` at `POST /bookings` TODO | `renderBookingResult(response)` |
 | Booking overview | `initializeBookings()` at `GET /bookings` TODO | `renderBookings(response)` |
@@ -263,3 +263,7 @@ Ensure all four HTML files are placed in the root of `frontend/`: `index.html`, 
 
 ### "Users API returned HTTP 404"?
 Nginx cannot reach the backend service, the backend has not finished starting, or the `GET /users` route failed. Run `docker compose logs frontend backend` to inspect container logs.
+
+## Station loading
+
+The search page automatically calls the configured stationsUrl (`/stations`) and populates both station dropdowns in server order. Empty lists and failed requests show a message; reload to retry. Nginx forwards this endpoint to Flask. Loading stations does not yet implement train search. The example button remains an explicitly labeled preview and may replace the displayed options with demo values.

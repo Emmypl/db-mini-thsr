@@ -4,7 +4,7 @@
  * Start with loadUsers(): it fetches users from the backend and fills the top-right dropdown.
  * Then review saveCurrentUser(): it remembers the selected ID across page navigation.
  *
- * GET /users, POST /bookings, and booking-details GET /bookings make actual requests.
+ * GET /users, GET /stations, POST /bookings, and booking-details GET /bookings make actual requests.
  * The backend must implement these endpoints. Train search, booking overview, and cancellation remain TODO.
  * TODO marks code that must be implemented later; comments are not executable.
  * Functions starting with render display data; examples/ui-example.js supplies clearly marked previews.
@@ -256,7 +256,7 @@
 
   // Populate both station dropdowns from the backend station list.
   // Display station.name and use station.station_id as the option value.
-  // This function is not called yet; the dropdowns currently show only placeholders.
+  // Options preserve the north-to-south order returned by the backend.
   function renderStations(stations) {
     if (!Array.isArray(stations)) throw new TypeError("The stations response must be an array.");
     ["from-station", "to-station"].forEach(function (id) {
@@ -273,6 +273,36 @@
         select.appendChild(option);
       });
     });
+  }
+
+  async function loadStations() {
+    const selects = [document.getElementById("from-station"), document.getElementById("to-station")];
+    selects.forEach(function (select) { select.disabled = true; });
+    setMessage("search-message", "Loading stations…");
+    const controller = new AbortController();
+    const timeout = window.setTimeout(function () { controller.abort(); }, config.requestTimeoutMs);
+    try {
+      const response = await fetch(config.stationsUrl, {
+        headers: { "Accept": "application/json" },
+        cache: "no-store",
+        signal: controller.signal
+      });
+      if (!response.ok) throw new Error("Stations API returned HTTP " + response.status + ".");
+      const stations = await response.json();
+      if (!Array.isArray(stations) || !stations.every(function (station) {
+        return station && typeof station.station_id === "string" && station.station_id.trim() &&
+          typeof station.name === "string" && station.name.trim();
+      })) throw new Error("The stations response has an invalid format.");
+      renderStations(stations);
+      selects.forEach(function (select) { select.disabled = stations.length === 0; });
+      setMessage("search-message", stations.length ? "Select your departure and arrival stations. Train search is not available yet." : "No stations are available.");
+    } catch (error) {
+      renderStations([]);
+      const reason = error.name === "AbortError" ? "The request timed out." : error.message;
+      setMessage("search-message", "Unable to load stations. " + reason + " Reload the page to retry.", true);
+    } finally {
+      window.clearTimeout(timeout);
+    }
   }
 
   // Collect the date, origin, destination, and two optional time limits.
@@ -330,7 +360,7 @@
   }
 
   // Initialize train-search interactions; return on pages without search-form.
-  // Station APIs are not connected, so a real train search cannot currently run.
+  // Station options load from the backend; schedule search is implemented separately.
   // After integration, reject identical stations or an earliest time later than the latest time.
   function initializeSearch() {
     const form = document.getElementById("search-form");
@@ -345,14 +375,7 @@
         value >= "2026-12-01" && value <= "2027-01-31";
     }
 
-    // TODO: Call GET /stations here and pass the response to renderStations(response).
-    // Users cannot select stations until the backend list is loaded; do not hard-code stations.
-    // For now, explain that search is unavailable when station options have not loaded.
-    form.querySelector('button[type="submit"]').addEventListener("click", function () {
-      if (!form.elements.from_station_id.value || !form.elements.to_station_id.value) {
-        setMessage("search-message", "Station data has not been loaded. Train search is unavailable.");
-      }
-    });
+    loadStations();
     // submit fires when the form is submitted. The browser first validates required fields,
     // and may display built-in validation feedback before this handler executes.
     form.addEventListener("submit", function (event) {
